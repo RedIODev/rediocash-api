@@ -1,0 +1,18 @@
+[package]
+name = "rediocash-api"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+libloading = "0.8.6"
+libc = "0.2.171"
+int-enum = "1.2"
+
+[features]
+default = ["plugin", "loader"]
+plugin = []
+loader = ["plugin", "capi"]
+capi = []
+
+[build-dependencies]
+bindgen = "0.71.1"
