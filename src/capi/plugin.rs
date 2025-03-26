@@ -159,6 +159,7 @@ impl From<&api::ResponseError> for ResponseError {
     fn from(value: &api::ResponseError) -> Self {
         match value.type_ {
             api::ResponseErrorType_RESPONSE_ERROR_UNINIT => ResponseError::Uninit,
+            api::ResponseErrorType_RESPONSE_ERROR_UNIMPLEMENTED => ResponseError::Unimplemented,
             _ => panic!("Invalid Enum varient from C Plugin.")
         }
     }

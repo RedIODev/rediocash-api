@@ -73,6 +73,7 @@ const _: () = {
     ["Offset of field: Response::data"][::std::mem::offset_of!(Response, data) - 8usize];
 };
 pub const ResponseErrorType_RESPONSE_ERROR_UNINIT: ResponseErrorType = 0;
+pub const ResponseErrorType_RESPONSE_ERROR_UNIMPLEMENTED: ResponseErrorType = 1;
 pub type ResponseErrorType = ::std::os::raw::c_uint;
 #[repr(C)]
 #[repr(align(1))]

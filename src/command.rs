@@ -6,7 +6,6 @@ use int_enum::IntEnum;
 pub enum Command {
     Init(),
     Status,
-
 }
 
 #[derive(Debug)]
@@ -25,5 +24,6 @@ pub enum Status {
 
 #[derive(Debug)]
 pub enum ResponseError {
-    Uninit
+    Uninit,
+    Unimplemented,
 }

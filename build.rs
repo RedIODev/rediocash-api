@@ -3,6 +3,7 @@ use std::{path::PathBuf, str::FromStr};
 fn main() {
     let bindings = bindgen::Builder::default()
             .header("./src/capi/header/rediocash_capi.h")
+            .ignore_functions()
             .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
             .generate()
             .expect("Unable to generate bindings!");

@@ -38,7 +38,8 @@ typedef struct {
 } Response;
 
 typedef enum {
-    RESPONSE_ERROR_UNINIT
+    RESPONSE_ERROR_UNINIT,
+    RESPONSE_ERROR_UNIMPLEMENTED
 } ResponseErrorType;
 
 typedef union {
