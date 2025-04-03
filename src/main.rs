@@ -23,6 +23,7 @@ impl X {
 
     pub fn t(&mut self) {
         println!("before: {:?}", self.event.listeners.len());
+        self.event.insert(|i| i+1);
         self.event += Self::foo;
         self.event += Self::bar;
         println!("after add: {:?}", self.event.listeners.len());

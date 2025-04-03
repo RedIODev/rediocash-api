@@ -46,9 +46,10 @@ impl<A,R> Ord for Listener<A,R> {
     }
 }
 
-impl<A,R> From<Box<dyn Fn(A)->R>> for Listener<A,R> {
-    fn from(value: Box<dyn Fn(A)->R>) -> Self {
-        Listener::Other(value)
+impl<A,R, F> From<F> for Listener<A,R>
+where F: Fn(A)->R + 'static {
+    fn from(value: F) -> Self {
+        Listener::Other(Box::new(value))
     }
 }
 
