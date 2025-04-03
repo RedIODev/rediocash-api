@@ -1,61 +1,103 @@
-use std::{error::Error, ops::{AddAssign, SubAssign}};
+use std::{cmp::Ordering, collections::BTreeSet, error::Error, ops::{AddAssign, SubAssign}, ptr::fn_addr_eq};
 
 pub enum EventError {
     Generic(Box<dyn Error>),
     Compound(Vec<EventError>)
 }
 
-pub type Listener<Args, Res> = dyn Fn(Args) -> Result<Res, EventError>;
-
-pub struct Event<Args, Res> {
-    listeners: Vec<Box<Listener<Args, Res>>>
+pub enum Listener<A,R = ()> {
+    Fp(fn (A) -> R),
+    Other(Box<dyn Fn(A) -> R>)
 }
 
-
-impl<Args: Clone, Res> Event<Args, Res> {
-    pub fn new() -> Self {
-        Self { listeners: Vec::new() }
-    }
-
-    pub fn send(&self, e: Args) -> Vec<Result<Res, EventError>> {
-        let mut vec = Vec::new();
-        for listener in &self.listeners {
-            vec.push(listener(e.clone()));
+impl<A,R> Listener<A, R> {
+    fn call(&self, args: A) -> R {
+        match self {
+            Listener::Fp(fp) => fp(args),
+            Listener::Other(other) => other(args),
         }
-        vec
     }
 }
 
-impl<Args, Res, F> AddAssign<F> for Event<Args, Res> 
-where 
-    F: Fn(Args) -> Result<Res, EventError> + 'static
-{
-    fn add_assign(&mut self, func: F) {
-        self.listeners.push(Box::new(func));
+impl<A,R> PartialEq for Listener<A,R> {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Fp(f1), Self::Fp(f2)) => fn_addr_eq(*f1, *f2),
+            _ => false
+        }
     }
 }
 
-impl<Args, Res, F> SubAssign<F> for Event<Args, Res> 
-where 
-    F: Fn(Args) -> Result<Res, EventError> + PartialEq<dyn Fn(Args) -> Result<Res, EventError>> + 'static  {
-    fn sub_assign(&mut self, func: F) {
-        self.listeners.retain(|f| func.eq(&**f))
+impl<A,R> Eq for Listener<A,R> {}
+
+impl<A,R> PartialOrd for Listener<A,R> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
     }
 }
 
-
-struct X {
-    event: Event<i32, i32>
-}
-
-impl X {
-    fn foo(i: i32) -> Result<i32, EventError> {
-        Ok(i)
-    }
-
-    fn t(&mut self) {
-        self.event += Self::foo;
-        self.event -= Self::foo;
+impl<A,R> Ord for Listener<A,R> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        if self.eq(other) {
+            return Ordering::Equal;
+        }
+        Ordering::Greater
+        
     }
 }
 
+impl<A,R> From<Box<dyn Fn(A)->R>> for Listener<A,R> {
+    fn from(value: Box<dyn Fn(A)->R>) -> Self {
+        Listener::Other(value)
+    }
+}
+
+pub struct Event<A,R = ()> {
+    pub listeners: BTreeSet<Listener<A,R>>
+}
+
+impl<A: Clone, R> Event<A, R> {
+    pub fn new() -> Self {
+        Self { listeners: BTreeSet::new() }
+    }
+
+    pub fn send(&self, args: A) -> Vec<R> {
+        let mut result = Vec::new();
+        for listener in &self.listeners {
+            result.push(listener.call(args.clone()));
+        }
+        result
+    }
+
+    pub fn insert<F>(&mut self, func: F) 
+    where F: Into<Listener<A,R>> {
+        self.listeners.insert(func.into());
+    }
+
+    pub fn clear(&mut self) {
+        self.listeners.clear();
+    }
+}
+
+impl<A,R> AddAssign<fn(A)->R> for Event<A,R> {
+
+    ///
+    /// 
+    /// Might behave unexpected see core::ptr::fn_addr_eq
+    /// 
+    fn add_assign(&mut self, func: fn(A)->R) {
+        self.listeners.insert(Listener::Fp(func));
+    }
+}
+
+impl<A,R> SubAssign<fn(A)->R> for Event<A,R> {
+    
+    ///
+    /// 
+    /// Might behave unexpected see core::ptr::fn_addr_eq
+    /// 
+    fn sub_assign(&mut self, func: fn(A)->R) {
+        let _x: bool = self.listeners.remove(&Listener::Fp(func));
+        println!("{_x}")
+    }
+}
