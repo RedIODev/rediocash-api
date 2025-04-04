@@ -1,3 +1,4 @@
+
 use rediocash_api::event::Event;
 
 
@@ -12,6 +13,9 @@ pub struct X {
     pub event: Event<i32, i32>
 }
 
+
+
+
 impl X {
     fn foo(i: i32) -> i32 {
         i
@@ -22,13 +26,16 @@ impl X {
     }
 
     pub fn t(&mut self) {
-        println!("before: {:?}", self.event.listeners.len());
-        self.event.insert(|i| i+1);
+        println!("before: {:?}", self.event.len());
+        
+        let cl = |i| i+1; 
+        self.event += cl.clone();
         self.event += Self::foo;
         self.event += Self::bar;
-        println!("after add: {:?}", self.event.listeners.len());
-        self.event -= Self::foo;
-        println!("after rem: {:?}", self.event.listeners.len());
+        println!("after add: {:?}", self.event.len());
+        self.event -= &Self::foo;
+        self.event -= &cl;
+        println!("after rem: {:?}", self.event.len());
     }
 }
 

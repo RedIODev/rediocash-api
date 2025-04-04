@@ -1,8 +1,8 @@
-use crate::command::{Command, Response, ResponseError};
+use crate::{command::{Command, Response, ResponseError}, event::Events};
 
-pub trait Plugin {
+pub trait Plugin: PartialOrd {
     fn name(&self) -> &str;
     fn version(&self) -> &str;
-    fn execute(&self, command: &Command) -> Result<Response, ResponseError>;
-
+    fn register_events(&self, events: &mut Events);
+    fn subscribe_events(&self, events: &mut Events);
 }

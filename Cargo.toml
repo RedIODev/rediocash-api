@@ -7,6 +7,7 @@ edition = "2024"
 libloading = "0.8.6"
 libc = "0.2.171"
 int-enum = "1.2"
+smallbox = "0.8.6"
 
 [features]
 default = ["plugin", "loader"]
