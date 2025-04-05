@@ -2,6 +2,7 @@ use std::any::{Any, TypeId};
 use std::collections::BTreeMap;
 use std::error::Error;
 use std::ops::{AddAssign, SubAssign};
+use std::rc::Rc;
 
 use smallbox::{space, SmallBox, smallbox};
 
@@ -11,15 +12,16 @@ use smallbox::{space, SmallBox, smallbox};
 // }
 
 pub struct Events {
-    events: BTreeMap<String, SmallBox<dyn Any, space::S32>>//todo convert to map from string
+    events: BTreeMap<String, SmallBox<dyn Any, space::S32>>
 }
 
 impl Events {
-    pub fn register_event<A: 'static, R: 'static>(&mut self, name:impl Into<String>,  event: Event<A,R>) -> bool {
+    pub fn register_event<A: 'static, R: 'static>(&mut self, name:impl Into<String>,  event: Rc<Event<A,R>>) -> bool {
         let name = name.into();
         if self.events.contains_key(&name) {
             return false;
         }
+        
         self.events.insert(name.into(), smallbox!(event));
         true
     }
@@ -27,8 +29,9 @@ impl Events {
     pub fn try_get_event<A: 'static, R: 'static>(&mut self, name: &str) -> Option<&mut Event<A, R>> {
         self.events
                 .get_mut(name)
-                .map(|event| event.downcast_mut())
+                .map(|event| event.downcast_mut::<Rc<Event<A,R>>>())
                 .flatten()
+                .map(|rc| &mut **rc)
     }
 }
 
