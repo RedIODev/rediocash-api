@@ -1,8 +1,8 @@
 use std::any::{Any, TypeId};
 use std::collections::BTreeMap;
-use std::error::Error;
 use std::ops::{AddAssign, SubAssign};
-use std::rc::Rc;
+use std::sync::Arc;
+use parking_lot::{MappedRwLockReadGuard, MappedRwLockWriteGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use smallbox::{space, SmallBox, smallbox};
 
@@ -11,27 +11,44 @@ use smallbox::{space, SmallBox, smallbox};
 //     Compound(Vec<EventError>),
 // }
 
+#[derive(Debug, Clone)]
 pub struct Events {
-    events: BTreeMap<String, SmallBox<dyn Any, space::S32>>
+    events: Arc<RwLock<BTreeMap<String, SmallBox<dyn Any, space::S32>>>>
 }
 
 impl Events {
-    pub fn register_event<A: 'static, R: 'static>(&mut self, name:impl Into<String>,  event: Rc<Event<A,R>>) -> bool {
+
+    pub fn new() -> Self {
+        Self { events: Arc::new(RwLock::new(BTreeMap::new())) }
+    }
+    
+
+    pub fn register_event<A: 'static, R: 'static>(&self, name:impl Into<String>,  event: Event<A,R>) -> bool {
         let name = name.into();
-        if self.events.contains_key(&name) {
+        if self.events.read().contains_key(&name) {
             return false;
         }
         
-        self.events.insert(name.into(), smallbox!(event));
+        self.events.write().insert(name.into(), smallbox!(event));
         true
     }
 
-    pub fn try_get_event<A: 'static, R: 'static>(&mut self, name: &str) -> Option<&mut Event<A, R>> {
-        self.events
-                .get_mut(name)
-                .map(|event| event.downcast_mut::<Rc<Event<A,R>>>())
-                .flatten()
-                .map(|rc| &mut **rc)
+    pub fn try_get_event<A: 'static, R: 'static>(&self, name: &str) -> Option<MappedRwLockReadGuard<'_, Event<A,R>>> {
+        RwLockReadGuard::try_map(self.events.read(), |events| {
+            events.get(name)
+            .map(|event| event.downcast_ref())
+            .flatten()
+        })
+        .ok()
+    }
+
+    pub fn try_get_event_mut<A: 'static, R: 'static>(&self, name: &str) -> Option<MappedRwLockWriteGuard<'_, Event<A,R>>> {
+        RwLockWriteGuard::try_map(self.events.write(), |events| {
+            events.get_mut(name)
+            .map(|event| event.downcast_mut())
+            .flatten()
+        })
+        .ok()
     }
 }
 
