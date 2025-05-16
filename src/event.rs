@@ -11,16 +11,17 @@ use smallbox::{space, SmallBox, smallbox};
 //     Compound(Vec<EventError>),
 // }
 
-#[derive(Debug, Clone)]
+
+#[derive(Debug, Clone, Default)]
 pub struct Events {
     events: Arc<RwLock<BTreeMap<String, SmallBox<dyn Any, space::S32>>>>
 }
 
 impl Events {
 
-    pub fn new() -> Self {
-        Self { events: Arc::new(RwLock::new(BTreeMap::new())) }
-    }
+    // pub fn new() -> Self {
+    //     Self { events: Arc::new(RwLock::new(BTreeMap::new())) }
+    // }
     
 
     pub fn register_event<A: 'static, R: 'static>(&self, name:impl Into<String>,  event: Event<A,R>) -> bool {
@@ -55,16 +56,16 @@ impl Events {
 pub trait Listener<A> {
     type Result;
 
-    fn consume(&self, args: A) -> Self::Result;
+    fn consume(&mut self, args: A) -> Self::Result; //make mut variant
 }
 
 impl<A, R, T> Listener<A> for T
 where
-    T: Fn(A) -> R,
+    T: FnMut(A) -> R,
 {
     type Result = R;
 
-    fn consume(&self, args: A) -> Self::Result {
+    fn consume(&mut self, args: A) -> Self::Result {
         self(args)
     }
 }
@@ -78,9 +79,9 @@ pub struct Event<A, R> {
 
 impl<A: Clone, R> Event<A, R> {
 
-    pub fn notify(&self, args: A) -> Vec<R> {
+    pub fn notify(&mut self, args: A) -> Vec<R> {
         let mut result = Vec::new();
-        for listener in &self.listeners {
+        for listener in &mut self.listeners {
             result.push(listener.1.consume(args.clone()));
         }
         result
@@ -96,7 +97,7 @@ impl<A,R> Event<A,R> {
     }
 
     pub fn register<F>(&mut self, func: F) -> bool 
-    where F: Fn(A) -> R + Any {
+    where F: Listener<A,Result=R> + Any {
         let id = func.type_id();
         if self.listeners.contains_key(&id) {
             return false;
@@ -106,7 +107,7 @@ impl<A,R> Event<A,R> {
     }
 
     pub fn unregister<F>(&mut self, func: &F) -> bool 
-    where F: Fn(A) -> R + Any {
+    where F: Listener<A,Result=R> + Any {
         self.listeners.remove(&func.type_id()).is_some()
 
     }
@@ -126,7 +127,7 @@ impl<A,R> Event<A,R> {
 
 impl<A, R, F> AddAssign<F> for Event<A, R>
 where
-    F: Fn(A) -> R + Any,
+    F: Listener<A,Result=R> + Any,
 {
     fn add_assign(&mut self, func: F) {
         self.register(func);
@@ -135,7 +136,7 @@ where
 
 impl<A, R, F> SubAssign<&F> for Event<A, R>
 where
-    F: Fn(A) -> R + Any,
+    F: Listener<A,Result=R> + Any,
 {
     fn sub_assign(&mut self, func: &F) {
        self.unregister(func);

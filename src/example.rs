@@ -1,10 +1,10 @@
 use std::mem::MaybeUninit;
 
-use crate::{command::{Command, Response, ResponseError, Status}, event::{Event, Events}, plugin::Plugin};
+use crate::{command::{Command, Response, ResponseError, Status}, event::{Event, Events}, plugin::{InitData, Plugin}, CBox};
 
 
 pub struct TestPlugin {
-    events: Events
+    pub events: Events
 }
 
 impl Plugin for TestPlugin {
@@ -21,7 +21,7 @@ impl Plugin for TestPlugin {
     }
     
     fn subscribe_events(&mut self) {
-        *self.events.try_get_event_mut::<String, ()>("test").unwrap() += |s| Self::test(s);
+        *self.events.try_get_event_mut::<String, ()>("test").unwrap() += Self::test;
     }
 
 }
@@ -30,12 +30,22 @@ impl TestPlugin {
     fn test(s: String) {
         println!("{s}")
     }
+
+    pub fn fire(&self) {
+        self.events.try_get_event_mut::<String, ()>("test").unwrap().notify("Test message".to_string());
+    }
 }
 
-#[allow(unused, improper_ctypes_definitions)]
-pub extern "C" fn create(events: Events) -> Box<dyn Plugin> {
-    Box::new(TestPlugin { events })
+#[allow(unused)]
+pub extern "C" fn load_plugin(data: InitData) -> CBox<dyn Plugin> {
+    let boxed: Box<dyn Plugin> = Box::new(TestPlugin { events: *data.events.to_box() });
+    boxed.into()
 }
+
+// #[unsafe(no_mangle)]
+// pub fn load_rust_plugin(data: InitData) -> PluginWrapper {
+//     PluginWrapper::new(Box::new(TestPlugin { events: unimplemented!()}))
+// }
 
 // 
 // pub unsafe extern "C" fn create_plugin(plugin: &mut MaybeUninit<Box<dyn Plugin>>) {
