@@ -6,11 +6,6 @@ use parking_lot::{MappedRwLockReadGuard, MappedRwLockWriteGuard, RwLock, RwLockR
 
 use smallbox::{space, SmallBox, smallbox};
 
-// pub enum EventError {
-//     Generic(Box<dyn Error>),
-//     Compound(Vec<EventError>),
-// }
-
 
 #[derive(Debug, Clone, Default)]
 pub struct Events {
@@ -18,11 +13,6 @@ pub struct Events {
 }
 
 impl Events {
-
-    // pub fn new() -> Self {
-    //     Self { events: Arc::new(RwLock::new(BTreeMap::new())) }
-    // }
-    
 
     pub fn register_event<A: 'static, R: 'static>(&self, name:impl Into<String>,  event: Event<A,R>) -> bool {
         let name = name.into();
@@ -56,7 +46,7 @@ impl Events {
 pub trait Listener<A> {
     type Result;
 
-    fn consume(&mut self, args: A) -> Self::Result; //make mut variant
+    fn consume(&mut self, args: A) -> Self::Result;
 }
 
 impl<A, R, T> Listener<A> for T
@@ -142,31 +132,3 @@ where
        self.unregister(func);
     }
 }
-
-// struct AnyOrd<T: Any>(pub T);
-
-// impl<T: Any> From<T> for AnyOrd<T> {
-//     fn from(value: T) -> Self {
-//         AnyOrd(value)
-//     }
-// }
-
-// impl<T: Any> PartialEq for AnyOrd<T> {
-//     fn eq(&self, other: &Self) -> bool {
-//         self.0.type_id().eq(&other.type_id())
-//     }
-// }
-
-// impl<T: Any> Eq for AnyOrd<T> {}
-
-// impl<T: Any> PartialOrd for AnyOrd<T> {
-//     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-//         self.0.type_id().partial_cmp(&other.0.type_id())
-//     }
-// }
-
-// impl<T: Any> Ord for AnyOrd<T> {
-//     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-//         self.0.type_id().cmp(&other.0.type_id())
-//     }
-// }
