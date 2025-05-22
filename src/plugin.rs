@@ -19,12 +19,12 @@ impl Default for InitData {
     }
 }
 
-// impl Clone for InitData {
-//     fn clone(&self) -> Self {
+impl Clone for InitData {
+    fn clone(&self) -> Self {
         
-//         Self { global_events: unsafe {self.global_events.to_box::<Events>()}.clone().into() }
-//     }
-// }
+        Self { global_events: unsafe {self.global_events.cloned::<Events>()} }
+    }
+}
 
 impl InitData {
     pub fn new (events: Events) -> InitData {

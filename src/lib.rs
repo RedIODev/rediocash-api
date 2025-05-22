@@ -1,6 +1,6 @@
 #![feature(ptr_metadata)]
 
-use std::ptr::{DynMetadata, Pointee};
+use std::ptr::{DynMetadata, Pointee, Thin};
 
 
 #[cfg(feature = "plugin")]
@@ -50,22 +50,18 @@ impl<T> From<Box<T>> for CBox {
 }
 
 impl CBox {
-    pub unsafe fn to_box<T>(self) -> Box<T> {
+    pub unsafe fn to_box<T: Thin>(self) -> Box<T> {
         unsafe {
             Box::from_raw(self.0 as *mut T)
         }
     }
+
+    pub unsafe fn cloned<T: Clone + Thin>(&self) -> Self {
+        let boxed = unsafe { Box::<T>::from_raw(self.0 as *mut T)};
+                 boxed.clone().into()
+    }
+
+    pub unsafe fn raw(self) -> *mut () {
+        self.0
+    }
 }
-
-// impl<T:Clone + ?Sized> Clone for CBox {
-//     fn clone(&self) -> Self {
-//         let boxed = unsafe { Box::from_raw(self.0)};
-//         boxed.clone().into()
-//     }
-// }
-
-// impl<T:Default + ?Sized> Default for CBox {
-//     fn default() -> Self {
-//         Box::<T>::default().into()
-//     }
-// }

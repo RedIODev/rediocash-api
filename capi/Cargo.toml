@@ -1,0 +1,11 @@
+[package]
+name = "capi"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+rediocash-api = {path = ".."}
+
+
+[build-dependencies]
+bindgen = "0.71.1"

@@ -1,5 +1,6 @@
 use std::any::{Any, TypeId};
 use std::collections::BTreeMap;
+use std::fmt::Debug;
 use std::ops::{AddAssign, SubAssign};
 use std::sync::Arc;
 use parking_lot::{MappedRwLockReadGuard, MappedRwLockWriteGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
@@ -7,9 +8,9 @@ use parking_lot::{MappedRwLockReadGuard, MappedRwLockWriteGuard, RwLock, RwLockR
 use smallbox::{space, SmallBox, smallbox};
 
 
-#[derive(Debug, Clone, Default)]
+#[derive(Clone, Default)]
 pub struct Events {
-    events: Arc<RwLock<BTreeMap<String, SmallBox<dyn Any, space::S32>>>>
+    events: Arc<RwLock<BTreeMap<String, SmallBox<dyn RTTI, space::S32>>>>
 }
 
 impl Events {
@@ -27,7 +28,7 @@ impl Events {
     pub fn try_get_event<A: 'static, R: 'static>(&self, name: &str) -> Option<MappedRwLockReadGuard<'_, Event<A,R>>> {
         RwLockReadGuard::try_map(self.events.read(), |events| {
             events.get(name)
-            .map(|event| event.downcast_ref())
+            .map(|event| event.upcast().downcast_ref())
             .flatten()
         })
         .ok()
@@ -36,10 +37,45 @@ impl Events {
     pub fn try_get_event_mut<A: 'static, R: 'static>(&self, name: &str) -> Option<MappedRwLockWriteGuard<'_, Event<A,R>>> {
         RwLockWriteGuard::try_map(self.events.write(), |events| {
             events.get_mut(name)
-            .map(|event| event.downcast_mut())
+            .map(|event| event.upcast_mut().downcast_mut())
             .flatten()
         })
         .ok()
+    }
+
+    pub unsafe fn get_event_unchecked(&self, name: &str) {
+
+    }
+}
+
+pub trait RTTI: Any {//fix clone problem and implement unchecked versions of all event actions
+    fn args_size(&self) -> usize;
+    fn ret_size(&self) -> usize;
+    unsafe fn notify_unchecked(&mut self, args: *const ());
+}
+
+impl dyn RTTI {
+    pub fn upcast(&self) -> &dyn Any {
+        self
+    }
+
+    pub fn upcast_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+}
+
+impl<A: 'static + Clone,R: 'static> RTTI for Event<A,R> {
+    fn args_size(&self) -> usize {
+        std::mem::size_of::<A>()
+    }
+
+    fn ret_size(&self) -> usize {
+        std::mem::size_of::<R>()
+    }
+    
+    unsafe fn notify_unchecked(&mut self, args: *const ()) {
+        let args = unsafe { *(args as *const A).clone()};
+        self.notify(args);
     }
 }
 
