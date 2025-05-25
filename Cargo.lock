@@ -48,6 +48,7 @@ name = "capi"
 version = "0.1.0"
 dependencies = [
  "bindgen",
+ "parking_lot",
  "rediocash-api",
 ]
 
@@ -75,6 +76,17 @@ dependencies = [
  "glob",
  "libc",
  "libloading",
+]
+
+[[package]]
+name = "derive-enum-from-into"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "42e5ddace13a8459cb452b19e01f59f16d3e2049c8b808f338a13eeadc326e33"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -119,6 +131,15 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "dyn_serde"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "42501063765b768d479b7c61ff59de45bbe9ab37675d13a253647f2d4748a1d6"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
@@ -281,13 +302,15 @@ dependencies = [
 name = "rediocash-api"
 version = "0.1.0"
 dependencies = [
+ "derive-enum-from-into",
  "derive_more",
  "dlopen2",
  "dlopen2_derive",
+ "dyn_serde",
  "int-enum",
  "libc",
- "libloading",
  "parking_lot",
+ "serde",
  "smallbox",
  "thiserror",
 ]
@@ -341,6 +364,26 @@ name = "scopeguard"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
+
+[[package]]
+name = "serde"
+version = "1.0.219"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5f0e2c6ed6606019b4e29e69dbaba95b11854410e5347d525002456dbbb786b6"
+dependencies = [
+ "serde_derive",
+]
+
+[[package]]
+name = "serde_derive"
+version = "1.0.219"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5b0276cf7f2c73365f7157c8123c21cd9a50fbbd844757af28ca1f5925fc2a00"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
 
 [[package]]
 name = "shlex"

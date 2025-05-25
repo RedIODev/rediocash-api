@@ -1,21 +1,23 @@
 use std::any::{Any, TypeId};
 use std::collections::BTreeMap;
-use std::fmt::Debug;
 use std::ops::{AddAssign, SubAssign};
 use std::sync::Arc;
+use derive_enum_from_into::EnumFrom;
+use dyn_serde::{Deserializer, Serialize};
 use parking_lot::{MappedRwLockReadGuard, MappedRwLockWriteGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
+
 
 use smallbox::{space, SmallBox, smallbox};
 
 
 #[derive(Clone, Default)]
 pub struct Events {
-    events: Arc<RwLock<BTreeMap<String, SmallBox<dyn RTTI, space::S32>>>>
+    events: Arc<RwLock<BTreeMap<String, SmallBox<dyn RawEvent, space::S32>>>>
 }
 
 impl Events {
 
-    pub fn register_event<A: 'static, R: 'static>(&self, name:impl Into<String>,  event: Event<A,R>) -> bool {
+    pub fn register_event(&self, name:impl Into<String>,  event: Event<impl EventArgs, impl EventResult>) -> bool {
         let name = name.into();
         if self.events.read().contains_key(&name) {
             return false;
@@ -25,82 +27,142 @@ impl Events {
         true
     }
 
-    pub fn try_get_event<A: 'static, R: 'static>(&self, name: &str) -> Option<MappedRwLockReadGuard<'_, Event<A,R>>> {
-        RwLockReadGuard::try_map(self.events.read(), |events| {
-            events.get(name)
-            .map(|event| event.upcast().downcast_ref())
-            .flatten()
-        })
-        .ok()
+    pub fn get_raw_event(&self, name: &str) -> Option<MappedRwLockReadGuard<'_, SmallBox<dyn RawEvent, space::S32>>> {
+        RwLockReadGuard::try_map(self.events.read(), 
+                |events| events.get(name))
+                .ok()
     }
 
-    pub fn try_get_event_mut<A: 'static, R: 'static>(&self, name: &str) -> Option<MappedRwLockWriteGuard<'_, Event<A,R>>> {
-        RwLockWriteGuard::try_map(self.events.write(), |events| {
-            events.get_mut(name)
-            .map(|event| event.upcast_mut().downcast_mut())
-            .flatten()
-        })
-        .ok()
+    pub fn get_raw_event_mut(&self, name: &str) -> Option<MappedRwLockWriteGuard<'_, SmallBox<dyn RawEvent, space::S32>>> {
+        RwLockWriteGuard::try_map(self.events.write(),
+                |events| events.get_mut(name))
+                .ok()
     }
 
-    pub unsafe fn get_event_unchecked(&self, name: &str) {
-
+    pub fn try_get_event<A: EventArgs, R: EventResult>(&self, name: &str) -> Option<MappedRwLockReadGuard<'_, Event<A,R>>> {
+        MappedRwLockReadGuard::try_map(self.get_raw_event(name)?,
+                |e| e.any().downcast_ref())
+                .ok()
     }
+
+    pub fn try_get_event_mut<A: EventArgs, R: EventResult>(&self, name: &str) -> Option<MappedRwLockWriteGuard<'_, Event<A,R>>> {
+        MappedRwLockWriteGuard::try_map(self.get_raw_event_mut(name)?,
+                |e| e.any_mut().downcast_mut())
+                .ok()
+    }
+
+    
+
 }
 
-pub trait RTTI: Any {//fix clone problem and implement unchecked versions of all event actions
-    fn args_size(&self) -> usize;
-    fn ret_size(&self) -> usize;
-    unsafe fn notify_unchecked(&mut self, args: *const ());
+pub trait EventArgs: 'static + Clone + for<'a> serde::Deserialize<'a> {}
+impl<T> EventArgs for T where T: 'static + Clone + for<'a> serde::Deserialize<'a> {}
+pub trait EventResult: 'static + serde::Serialize {}
+impl<T> EventResult for T where T: 'static + serde::Serialize {}
+
+type CListenerFp = unsafe extern "C" fn(()) -> (); //C Args & Result types
+
+pub trait RawEvent: Any {
+    fn notify_c(&mut self, args: &mut dyn Deserializer) -> Vec<Box<dyn Serialize>>;
+
+    fn consume_c(&mut self, args: &mut dyn Deserializer) -> Box<dyn Serialize>;
+
+    fn register_c(&mut self, fp: CListenerFp) -> bool;
+
+    fn unregister_c(&mut self, fp: CListenerFp) -> bool;
+
+    fn clear(&mut self);
+
+    fn remove(&mut self, listener_id: ListernerId) -> bool;
+
+    fn len(&self) -> usize;
 }
 
-impl dyn RTTI {
-    pub fn upcast(&self) -> &dyn Any {
+impl dyn RawEvent {
+    pub fn any(&self) -> &dyn Any {
         self
     }
 
-    pub fn upcast_mut(&mut self) -> &mut dyn Any {
+    pub fn any_mut(&mut self) -> &mut dyn Any {
         self
     }
 }
 
-impl<A: 'static + Clone,R: 'static> RTTI for Event<A,R> {
-    fn args_size(&self) -> usize {
-        std::mem::size_of::<A>()
+impl<A: EventArgs, R: EventResult> RawEvent for Event<A,R> {
+    fn notify_c(&mut self, args: &mut dyn Deserializer) -> Vec<Box<dyn Serialize>> {
+        let a = args.deserialize::<A>().unwrap();
+        self.notify(a)
+                .into_iter()
+                .map(|r| Box::new(r)as Box<dyn Serialize>)
+                .collect()
     }
 
-    fn ret_size(&self) -> usize {
-        std::mem::size_of::<R>()
+    fn consume_c(&mut self, args: &mut dyn Deserializer) -> Box<dyn Serialize> {
+        todo!()
     }
     
-    unsafe fn notify_unchecked(&mut self, args: *const ()) {
-        let args = unsafe { *(args as *const A).clone()};
-        self.notify(args);
+    fn register_c(&mut self, fp: CListenerFp) -> bool {
+        let id = ListernerId::Fp(fp as usize);
+        if self.listeners.contains_key(&id) {
+            return false;
+        }
+        self.listeners.insert(id, smallbox!(CListener {fp}));
+        true
+    }
+    
+    fn unregister_c(&mut self, fp: CListenerFp) -> bool {
+        self.remove(ListernerId::Fp(fp as usize))
+    }
+
+    fn clear(&mut self) {
+        self.listeners.clear();
+    }
+
+    fn remove(&mut self, listener_id: ListernerId) -> bool {
+        self.listeners.remove(&listener_id).is_some()
+    }
+
+    fn len(&self) -> usize {
+        self.listeners.len()
     }
 }
 
-pub trait Listener<A> {
-    type Result;
-
-    fn consume(&mut self, args: A) -> Self::Result;
+pub trait Listener<A, R> {
+    fn consume(&mut self, args: A) -> R;
 }
 
-impl<A, R, T> Listener<A> for T
+impl<A, R, T> Listener<A, R> for T
 where
     T: FnMut(A) -> R,
 {
-    type Result = R;
 
-    fn consume(&mut self, args: A) -> Self::Result {
+    fn consume(&mut self, args: A) -> R {
         self(args)
     }
 }
 
-pub type ListenerBox<A,R> = SmallBox<dyn Listener<A, Result = R>, space::S2>; 
+struct CListener {
+    fp: CListenerFp
+}
+
+impl<A,R> Listener<A, R> for CListener {
+    fn consume(&mut self, args: A) -> R {
+        todo!()
+    }
+}
+
+
+pub type ListenerBox<A,R> = SmallBox<dyn Listener<A, R>, space::S2>; 
+
+#[derive(PartialEq, PartialOrd, Eq, Ord, EnumFrom)]
+pub enum ListernerId {
+    TypeId(TypeId),
+    Fp(usize)
+}
 
 #[derive(Default)]
-pub struct Event<A, R> {
-    listeners: BTreeMap<TypeId, ListenerBox<A,R>>,
+pub struct Event<A:Clone, R> { 
+    listeners: BTreeMap<ListernerId, ListenerBox<A,R>>,
 }
 
 impl<A: Clone, R> Event<A, R> {
@@ -114,7 +176,7 @@ impl<A: Clone, R> Event<A, R> {
     }
 }
 
-impl<A,R> Event<A,R> {
+impl<A:Clone + EventArgs, R: EventResult> Event<A,R> {
 
     pub fn new() -> Self {
         Self {
@@ -123,8 +185,8 @@ impl<A,R> Event<A,R> {
     }
 
     pub fn register<F>(&mut self, func: F) -> bool 
-    where F: Listener<A,Result=R> + Any {
-        let id = func.type_id();
+    where F: Listener<A, R> + Any {
+        let id = func.type_id().into();
         if self.listeners.contains_key(&id) {
             return false;
         }
@@ -133,36 +195,25 @@ impl<A,R> Event<A,R> {
     }
 
     pub fn unregister<F>(&mut self, func: &F) -> bool 
-    where F: Listener<A,Result=R> + Any {
-        self.listeners.remove(&func.type_id()).is_some()
-
+    where F: Listener<A, R> + Any {
+        self.remove(func.type_id().into())
     }
 
-    pub fn clear(&mut self) {
-        self.listeners.clear();
-    }
 
-    pub fn remove(&mut self, type_id: TypeId) -> Option<ListenerBox<A,R>> {
-        self.listeners.remove(&type_id)
-    }
-
-    pub fn len(&self) -> usize {
-        self.listeners.len()
-    }
 }
 
-impl<A, R, F> AddAssign<F> for Event<A, R>
+impl<A:Clone + EventArgs, R: EventResult, F> AddAssign<F> for Event<A, R>
 where
-    F: Listener<A,Result=R> + Any,
+    F: Listener<A, R> + Any,
 {
     fn add_assign(&mut self, func: F) {
         self.register(func);
     }
 }
 
-impl<A, R, F> SubAssign<&F> for Event<A, R>
+impl<A:Clone + EventArgs, R: EventResult, F> SubAssign<&F> for Event<A, R>
 where
-    F: Listener<A,Result=R> + Any,
+    F: Listener<A, R> + Any,
 {
     fn sub_assign(&mut self, func: &F) {
        self.unregister(func);

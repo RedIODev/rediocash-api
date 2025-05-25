@@ -27,6 +27,14 @@ typedef struct {
     CEvents events;
 } CInitData;
 
+typedef struct {
+    const void *event;
+} CEvent;
+
+typedef struct {
+    void *event;
+} CEventMut;
+
 //required to be defined by the c plugin and must be able to free all data passed through the api related to events.
 void deallocate_event_data(void*);
 

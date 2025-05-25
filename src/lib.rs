@@ -1,6 +1,7 @@
 #![feature(ptr_metadata)]
+#![feature(box_vec_non_null)]
 
-use std::ptr::{DynMetadata, Pointee, Thin};
+use std::ptr::{DynMetadata, NonNull, Pointee, Thin};
 
 
 #[cfg(feature = "plugin")]
@@ -13,17 +14,17 @@ pub mod event;
 
 #[derive(Debug)]
 #[repr(C)]
-pub struct FatCBox(*mut (), *mut ());
+pub struct FatCBox(NonNull<()>, NonNull<()>);
 
 impl<T> From<Box<T>> for FatCBox 
 where T: ?Sized + Pointee<Metadata = DynMetadata<T>> {
 
 
     fn from(value: Box<T>) -> Self {
-        let t = Box::leak(value) as *mut T;
+        let t = NonNull::from_ref(Box::leak(value));
         let (ptr, vtable) = t.to_raw_parts();
         let vtable = Box::new(vtable);
-        let vtable = Box::leak(vtable) as * mut DynMetadata<T> as *mut ();
+        let vtable = NonNull::from_ref(Box::leak(vtable)).cast();
         Self(ptr, vtable)
     }
 }
@@ -32,36 +33,44 @@ impl FatCBox {
     pub unsafe fn to_box<T>(self) -> Box<T> 
     where T: ?Sized + Pointee<Metadata = DynMetadata<T>> {
         unsafe {
-            let vtable = Box::from_raw(self.1 as *mut DynMetadata<T>);
-            let t = std::ptr::from_raw_parts_mut(self.0, *vtable);
-            Box::from_raw(t)
+            let vtable = Box::from_non_null(self.1.cast());
+            let t = NonNull::from_raw_parts(self.0, *vtable);
+            Box::from_non_null(t)
         }
+    }
+
+    pub fn raw(self) -> (NonNull<()>, NonNull<()>) {
+        (self.0, self.1)
     }
 }
 
 #[derive(Debug)]
 #[repr(C)]
-pub struct CBox(*mut ());
+pub struct CBox(NonNull<()>);
 
 impl<T> From<Box<T>> for CBox {
     fn from(value: Box<T>) -> Self {
-        Self(Box::leak(value) as *mut T as *mut ())
+        Self(NonNull::from_ref(Box::leak(value)).cast())
     }
 }
 
 impl CBox {
     pub unsafe fn to_box<T: Thin>(self) -> Box<T> {
         unsafe {
-            Box::from_raw(self.0 as *mut T)
+            Box::from_non_null(self.0.cast())
         }
     }
 
+    pub unsafe fn from_raw(ptr: *mut()) -> Option<Self> {
+        NonNull::new(ptr).map(Self)
+    }
+
     pub unsafe fn cloned<T: Clone + Thin>(&self) -> Self {
-        let boxed = unsafe { Box::<T>::from_raw(self.0 as *mut T)};
+        let boxed = unsafe { Box::<T>::from_non_null(self.0.cast())};
                  boxed.clone().into()
     }
 
-    pub unsafe fn raw(self) -> *mut () {
+    pub fn raw(self) -> NonNull<()> {
         self.0
     }
 }

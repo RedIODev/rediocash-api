@@ -62,6 +62,28 @@ const _: () = {
     ["Alignment of CInitData"][::std::mem::align_of::<CInitData>() - 8usize];
     ["Offset of field: CInitData::events"][::std::mem::offset_of!(CInitData, events) - 0usize];
 };
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct CEvent {
+    pub event: *const ::std::os::raw::c_void,
+}
+#[allow(clippy::unnecessary_operation, clippy::identity_op)]
+const _: () = {
+    ["Size of CEvent"][::std::mem::size_of::<CEvent>() - 8usize];
+    ["Alignment of CEvent"][::std::mem::align_of::<CEvent>() - 8usize];
+    ["Offset of field: CEvent::event"][::std::mem::offset_of!(CEvent, event) - 0usize];
+};
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct CEventMut {
+    pub event: *mut ::std::os::raw::c_void,
+}
+#[allow(clippy::unnecessary_operation, clippy::identity_op)]
+const _: () = {
+    ["Size of CEventMut"][::std::mem::size_of::<CEventMut>() - 8usize];
+    ["Alignment of CEventMut"][::std::mem::align_of::<CEventMut>() - 8usize];
+    ["Offset of field: CEventMut::event"][::std::mem::offset_of!(CEventMut, event) - 0usize];
+};
 unsafe extern "C" {
     pub fn deallocate_event_data(arg1: *mut ::std::os::raw::c_void);
 }

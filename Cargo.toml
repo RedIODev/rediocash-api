@@ -7,8 +7,6 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-libloading = "0.8.7"
-
 dlopen2 = "0.7.0"
 dlopen2_derive = "0.4.0"
 
@@ -18,7 +16,10 @@ smallbox = "0.8.6"
 parking_lot = "0.12.3"
 thiserror = "2.0.12"
 derive_more = {version = "2.0.1", features = ["display"]}
+derive-enum-from-into = "0.2.0"
 
+serde = {version = "1.0.219", features = ["derive"]}
+dyn_serde = "1.0.2"
 
 [features]
 default = ["plugin", "loader"]
