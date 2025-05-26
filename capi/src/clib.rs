@@ -1,4 +1,4 @@
-use std::{ffi::{c_char, CStr}, os::raw::c_void, ptr::NonNull};
+use std::{ffi::{c_char, CStr, CString}, os::raw::c_void, ptr::NonNull};
 
 use rediocash_api::{event::{Event, Events}, plugin::{InitData, Plugin}, CBox, FatCBox};
 
@@ -19,14 +19,14 @@ pub extern "C" fn unpack_init_data(data: InitData) -> CInitData {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn register_event(mut events: CEvents, name: *const c_char) -> bool {
+pub extern "C" fn register_event(events: CEvents, name: *const c_char) -> bool {
     let events = unsafe { events.events() };
     let cstr = unsafe { takeown_cstring(name) };
     events.register_event(cstr, Event::<(), ()>::new()) //C types
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn get_event(mut events: CEvents, name: *const c_char) -> CEvent {
+pub extern "C" fn get_event(events: CEvents, name: *const c_char) -> CEvent {
     let events = unsafe { events.events() };
     let cstr = unsafe { takeown_cstring(name) };
     let event = events.get_raw_event(&cstr).unwrap();
@@ -35,7 +35,7 @@ pub extern "C" fn get_event(mut events: CEvents, name: *const c_char) -> CEvent 
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn get_event_mut(mut events: CEvents, name: *const c_char) -> CEventMut {
+pub extern "C" fn get_event_mut(events: CEvents, name: *const c_char) -> CEventMut {
     let events = unsafe { events.events() };
     let cstr = unsafe { takeown_cstring(name) };
     let event = events.get_raw_event_mut(&cstr).unwrap();
@@ -43,13 +43,17 @@ pub extern "C" fn get_event_mut(mut events: CEvents, name: *const c_char) -> CEv
     CEventMut { event: boxed_event.raw().cast().as_ptr() }
 }
 
+#[unsafe(no_mangle)]
+pub extern "C" fn deallocate_rust_string(string: *const c_char) {
+    unsafe { drop(CString::from_raw(string as *mut c_char)); }
+}
+
 
 impl CEvents {
     //takes ownership of the Events object to ensure single ownership of temporary raw pointer. 
     //This means this function can only be called once on any CEvents object.
-    unsafe fn events(&mut self) -> Box<Events> {
+    unsafe fn events(self) -> Box<Events> {
         let ptr = NonNull::new(self.inner).expect("Nullpointer not allowed!").cast();
-        self.inner = std::ptr::null_mut();
         unsafe {Box::from_raw(ptr.as_ptr())}
     }
 }

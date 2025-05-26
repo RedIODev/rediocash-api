@@ -65,7 +65,7 @@ type CListenerFp = unsafe extern "C" fn(()) -> (); //C Args & Result types
 pub trait RawEvent: Any {
     fn notify_c(&mut self, args: &mut dyn Deserializer) -> Vec<Box<dyn Serialize>>;
 
-    fn consume_c(&mut self, args: &mut dyn Deserializer) -> Box<dyn Serialize>;
+    // fn consume_c(&mut self, args: &mut dyn Deserializer) -> Box<dyn Serialize>;
 
     fn register_c(&mut self, fp: CListenerFp) -> bool;
 
@@ -93,13 +93,13 @@ impl<A: EventArgs, R: EventResult> RawEvent for Event<A,R> {
         let a = args.deserialize::<A>().unwrap();
         self.notify(a)
                 .into_iter()
-                .map(|r| Box::new(r)as Box<dyn Serialize>)
+                .map(|r| Box::new(r) as Box<dyn Serialize>)
                 .collect()
     }
 
-    fn consume_c(&mut self, args: &mut dyn Deserializer) -> Box<dyn Serialize> {
-        todo!()
-    }
+    // fn consume_c(&mut self, args: &mut dyn Deserializer) -> Box<dyn Serialize> {
+    //     todo!()
+    // }
     
     fn register_c(&mut self, fp: CListenerFp) -> bool {
         let id = ListernerId::Fp(fp as usize);

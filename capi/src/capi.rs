@@ -3,6 +3,24 @@
 pub const __bool_true_false_are_defined: u32 = 1;
 pub const true_: u32 = 1;
 pub const false_: u32 = 0;
+pub type wchar_t = ::std::os::raw::c_int;
+#[repr(C)]
+#[repr(align(16))]
+#[derive(Debug, Copy, Clone)]
+pub struct max_align_t {
+    pub __clang_max_align_nonce1: ::std::os::raw::c_longlong,
+    pub __bindgen_padding_0: u64,
+    pub __clang_max_align_nonce2: u128,
+}
+#[allow(clippy::unnecessary_operation, clippy::identity_op)]
+const _: () = {
+    ["Size of max_align_t"][::std::mem::size_of::<max_align_t>() - 32usize];
+    ["Alignment of max_align_t"][::std::mem::align_of::<max_align_t>() - 16usize];
+    ["Offset of field: max_align_t::__clang_max_align_nonce1"]
+        [::std::mem::offset_of!(max_align_t, __clang_max_align_nonce1) - 0usize];
+    ["Offset of field: max_align_t::__clang_max_align_nonce2"]
+        [::std::mem::offset_of!(max_align_t, __clang_max_align_nonce2) - 16usize];
+};
 pub type ObjToStringFunc = ::std::option::Option<
     unsafe extern "C" fn(arg1: *mut ::std::os::raw::c_void) -> *const ::std::os::raw::c_char,
 >;

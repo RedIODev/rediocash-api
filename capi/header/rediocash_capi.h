@@ -2,6 +2,7 @@
 #define REDIOCASH_CAPI_H
 
 #include <stdbool.h>
+#include <stddef.h>
 
 typedef const char *(*ObjToStringFunc)(void*);
 
@@ -35,7 +36,7 @@ typedef struct {
     void *event;
 } CEventMut;
 
-//required to be defined by the c plugin and must be able to free all data passed through the api related to events.
+//required to be defined by the c plugin and must be able to free all data passed to the api from C code related to events.
 void deallocate_event_data(void*);
 
 #endif
