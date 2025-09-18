@@ -5,14 +5,18 @@
 
 typedef void (*StringDealloc)(const c8 *);
 
-// Immutable owned String type with variable allocator and fixed length.
+// Immutable owning String type with variable allocator and fixed length.
 // Takes ownership of the passed buffer.
-// When a String instance is created with invalid arguments the ownership of the buffer is returned to the caller.
 // Rather the String instance is valid can be tested with the isValidString(String*) function.
 // All operations on invalid Strings are nops.
-typedef struct String_impl String;
+// A String instance with a null deallocate function is valid and it is assumed that the buffer has a lifetime greater than the String instance.
+typedef struct {
+    u8 internal[sizeof(StringDealloc) + sizeof(c8*) + sizeof(usize)];
+} String;
 
 // Creates a new String instance from a buffer (taking ownership), the size of the buffer and a function to deallocate the buffer.
+// When a String instance is created with invalid arguments the ownership of the buffer is returned to the caller.
+// The deallocator can be null in which case the buffer will be leaked if not managed otherwise.
 String createString(const c8 *, usize, StringDealloc);
 
 // Destroys the String including it's content. The instance is no longer valid after a call to this function.
