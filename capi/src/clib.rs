@@ -1,4 +1,4 @@
-use std::{ffi::{c_char, CStr, CString}, os::raw::c_void, ptr::NonNull};
+use std::{ffi::{c_char, CString}, ptr::NonNull};
 
 use rediocash_api::{event::{Event, Events}, plugin::{InitData, Plugin}, CBox, FatCBox};
 
@@ -22,7 +22,7 @@ pub extern "C" fn unpack_init_data(data: InitData) -> CInitData {
 pub extern "C" fn register_event(events: CEvents, name: *const c_char) -> bool {
     let events = unsafe { events.events() };
     let cstr = unsafe { takeown_cstring(name) };
-    events.register_event(cstr, Event::<(), ()>::new()) //C types
+    events.register_event(cstr, Event::<String, String>::new()) //C types
 }
 
 #[unsafe(no_mangle)]
@@ -59,7 +59,5 @@ impl CEvents {
 }
 
 unsafe fn takeown_cstring(string: *const c_char) -> String {
-    let cstr = unsafe { CStr::from_ptr(string) }.to_string_lossy().into_owned();
-    unsafe { deallocate_event_data(string as *mut c_void) };
-    cstr
+    unsafe { rediocash_api::takeown_cstring(string, deallocate_event_data) }
 }

@@ -1,7 +1,7 @@
 #![feature(ptr_metadata)]
 #![feature(box_vec_non_null)]
 
-use std::ptr::{DynMetadata, NonNull, Pointee, Thin};
+use std::{ffi::{c_char, c_void, CStr}, ptr::{DynMetadata, NonNull, Pointee, Thin}};
 
 
 #[cfg(feature = "plugin")]
@@ -73,4 +73,12 @@ impl CBox {
     pub fn raw(self) -> NonNull<()> {
         self.0
     }
+}
+
+type CDeallocFp = unsafe extern "C" fn(*mut c_void);
+
+pub unsafe fn takeown_cstring(string: *const c_char, dealloc_string_fp: CDeallocFp) -> String {
+    let cstr = unsafe { CStr::from_ptr(string) }.to_string_lossy().into_owned();
+    unsafe { dealloc_string_fp(string as *mut c_void) };
+    cstr
 }

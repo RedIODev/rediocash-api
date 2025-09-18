@@ -1,6 +1,8 @@
 use std::any::{Any, TypeId};
 use std::collections::BTreeMap;
+use std::ffi::c_char;
 use std::ops::{AddAssign, SubAssign};
+use std::os::raw::c_void;
 use std::sync::Arc;
 use derive_enum_from_into::EnumFrom;
 use dyn_serde::{Deserializer, Serialize};
@@ -8,6 +10,8 @@ use parking_lot::{MappedRwLockReadGuard, MappedRwLockWriteGuard, RwLock, RwLockR
 
 
 use smallbox::{space, SmallBox, smallbox};
+
+use crate::{takeown_cstring, CDeallocFp};
 
 
 #[derive(Clone, Default)]
@@ -55,19 +59,19 @@ impl Events {
 
 }
 
-pub trait EventArgs: 'static + Clone + for<'a> serde::Deserialize<'a> {}
-impl<T> EventArgs for T where T: 'static + Clone + for<'a> serde::Deserialize<'a> {}
-pub trait EventResult: 'static + serde::Serialize {}
-impl<T> EventResult for T where T: 'static + serde::Serialize {}
+pub trait EventArgs: 'static + Clone + for<'a> serde::Deserialize<'a> + serde::ser::Serialize {}
+impl<T> EventArgs for T where T: 'static + Clone + for<'a> serde::Deserialize<'a> + serde::ser::Serialize  {}
+pub trait EventResult: 'static + for<'a> serde::Deserialize<'a> +serde::Serialize {}
+impl<T> EventResult for T where T: 'static + for<'a> serde::Deserialize<'a> + serde::Serialize {}
 
-type CListenerFp = unsafe extern "C" fn(()) -> (); //C Args & Result types
+type CListenerFp = unsafe extern "C" fn(*const c_char) -> *const c_char; //C Args & Result types
 
 pub trait RawEvent: Any {
     fn notify_c(&mut self, args: &mut dyn Deserializer) -> Vec<Box<dyn Serialize>>;
 
     // fn consume_c(&mut self, args: &mut dyn Deserializer) -> Box<dyn Serialize>;
 
-    fn register_c(&mut self, fp: CListenerFp) -> bool;
+    fn register_c(&mut self, fp: CListenerFp, cleanup_fp: CDeallocFp) -> bool;
 
     fn unregister_c(&mut self, fp: CListenerFp) -> bool;
 
@@ -88,7 +92,7 @@ impl dyn RawEvent {
     }
 }
 
-impl<A: EventArgs, R: EventResult> RawEvent for Event<A,R> {
+impl<A: EventArgs, R: EventResult> RawEvent for Event<A,serde_json::Result<R>> {
     fn notify_c(&mut self, args: &mut dyn Deserializer) -> Vec<Box<dyn Serialize>> {
         let a = args.deserialize::<A>().unwrap();
         self.notify(a)
@@ -101,12 +105,12 @@ impl<A: EventArgs, R: EventResult> RawEvent for Event<A,R> {
     //     todo!()
     // }
     
-    fn register_c(&mut self, fp: CListenerFp) -> bool {
+    fn register_c(&mut self, fp: CListenerFp, cleanup_fp: CDeallocFp) -> bool {
         let id = ListernerId::Fp(fp as usize);
         if self.listeners.contains_key(&id) {
             return false;
         }
-        self.listeners.insert(id, smallbox!(CListener {fp}));
+        self.listeners.insert(id, smallbox!(CListener {fp, cleanup_fp}));
         true
     }
     
@@ -142,12 +146,16 @@ where
 }
 
 struct CListener {
-    fp: CListenerFp
+    fp: CListenerFp,
+    cleanup_fp: CDeallocFp
 }
 
-impl<A,R> Listener<A, R> for CListener {
-    fn consume(&mut self, args: A) -> R {
-        todo!()
+impl<A: EventArgs,R: EventResult> Listener<A, serde_json::Result<R>> for CListener {
+    fn consume(&mut self, args: A) -> serde_json::Result<R> {
+        let args = serde_json::to_string(&args)?;
+        let result = unsafe { (self.fp)(args.as_ptr() as *const i8) };
+        let result = unsafe { takeown_cstring(result, self.cleanup_fp) };
+        serde_json::from_str(&result)
     }
 }
 
