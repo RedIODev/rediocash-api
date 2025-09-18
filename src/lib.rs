@@ -5,5 +5,3 @@ pub mod plugin;
 #[cfg(feature = "loader")]
 pub mod loader;
 mod example;
-#[cfg(feature = "capi")]
-pub mod capi;
