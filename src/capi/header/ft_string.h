@@ -1,7 +1,7 @@
 #ifndef FT_STRING_H
 #define FT_STRING_H
 
-#include "ft_c_types.h"
+#include "ft_types.h"
 
 typedef void (*StringDealloc)(const c8 *);
 

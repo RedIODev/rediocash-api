@@ -1,5 +1,5 @@
-#ifndef FT_C_TYPES_H
-#define FT_C_TYPES_H
+#ifndef FT_TYPES_H
+#define FT_TYPES_H
 
 #include <stdint.h>
 #include <float.h>
@@ -38,5 +38,8 @@ typedef long double f128;
 typedef long double f80;
 #define FLOAT_80
 #endif
+
+#define OUT
+#define NON_NULL
 
 #endif

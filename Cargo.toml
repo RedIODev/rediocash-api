@@ -1,11 +1,11 @@
 [package]
-name = "rediocash-api"
+name = "finance-together-api"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-libloading = "0.8.6"
-libc = "0.2.171"
+libloading = "0.8.8"
+libc = "0.2.175"
 int-enum = "1.2"
 
 [features]
@@ -15,4 +15,9 @@ loader = ["plugin", "capi"]
 capi = []
 
 [build-dependencies]
-bindgen = "0.71.1"
+bindgen = "0.72.1"
+cbindgen = "0.29.0"
+cc = "1.2.37"
+
+[lib]
+crate-type = ["staticlib"]
