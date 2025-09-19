@@ -6,8 +6,4 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-void test(void);
-
-void test2(int32_t i);
-
 #endif  /* FT_RUSTBINDINGS_H */

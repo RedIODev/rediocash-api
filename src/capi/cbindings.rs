@@ -327,7 +327,26 @@ const _: () = {
     ["Offset of field: max_align_t::__clang_max_align_nonce2"]
         [::std::mem::offset_of!(max_align_t, __clang_max_align_nonce2) - 16usize];
 };
-pub type Handler =
-    ::std::option::Option<unsafe extern "C" fn(arg1: String, arg2: *mut String) -> bool>;
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct ApplicationContext {
+    pub i: ::std::os::raw::c_int,
+}
+#[allow(clippy::unnecessary_operation, clippy::identity_op)]
+const _: () = {
+    ["Size of ApplicationContext"][::std::mem::size_of::<ApplicationContext>() - 4usize];
+    ["Alignment of ApplicationContext"][::std::mem::align_of::<ApplicationContext>() - 4usize];
+    ["Offset of field: ApplicationContext::i"]
+        [::std::mem::offset_of!(ApplicationContext, i) - 0usize];
+};
+pub type ContextSupplier = ::std::option::Option<unsafe extern "C" fn() -> ApplicationContext>;
+pub type Handler = ::std::option::Option<
+    unsafe extern "C" fn(arg1: ContextSupplier, arg2: String, arg3: *mut String) -> bool,
+>;
+pub type HandlerRegisterService =
+    ::std::option::Option<unsafe extern "C" fn(arg1: Handler) -> bool>;
+unsafe extern "C" {
+    pub fn pluginMain(arg1: HandlerRegisterService);
+}
 pub type __int128_t = i128;
 pub type __uint128_t = u128;

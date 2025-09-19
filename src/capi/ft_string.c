@@ -41,6 +41,9 @@ void destroyString(String *string) {
 }
 
 bool isValidString(const String *string) {
+    if (string == NULL) {
+        return false;
+    }
     String_impl* str = (String_impl*) string;
     return str->data != NULL;
 }
