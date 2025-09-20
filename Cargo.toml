@@ -4,20 +4,14 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-libloading = "0.8.8"
-libc = "0.2.175"
-int-enum = "1.2"
 
 [features]
-default = ["plugin", "loader"]
-plugin = []
-loader = ["plugin", "capi"]
-capi = []
+
 
 [build-dependencies]
 bindgen = "0.72.1"
 cbindgen = "0.29.0"
-cc = "1.2.37"
+cc = "1.2.38"
 
 [lib]
 crate-type = ["staticlib"]

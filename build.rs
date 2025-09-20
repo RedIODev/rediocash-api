@@ -17,6 +17,7 @@ let crate_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
     let bindings = bindgen::Builder::default()
             .header("./src/capi/header/ft_api.h")
             .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
+            .derive_copy(false)
             .generate()
             .expect("Unable to generate c -> rust bindings!");
     let out_path = PathBuf::from_str("./src/capi/cbindings.rs")
